@@ -30,22 +30,28 @@ async function run() {
     const reviewCollection = client.db("resTaurantHuntDB").collection("reviews");
     const cartCollection = client.db("resTaurantHuntDB").collection("cart");
 
-//menu related apis
+    //menu related apis
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
       res.send(result);
     })
-//review related apis
+    //review related apis
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
       res.send(result);
     })
 
     //cart related apis
-    app.post("/cart",async(req,res)=>{
-      const cart = req.body;
-      const result = await cartCollection.insertOne(cart)
+    app.post("/carts", async (req, res) => {
+      const cartItem = req.body;
+      const result = await cartCollection.insertOne(cartItem)
       res.send(result)
+    })
+    app.get("/carts", async (req, res) => {
+      const email = req.query.email
+      const query = { email: email }
+      const result = await cartCollection.find(query).toArray()
+      res.send(result);
     })
 
     // Send a ping to confirm a successful connection
