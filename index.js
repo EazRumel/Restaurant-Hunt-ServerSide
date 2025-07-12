@@ -35,16 +35,28 @@ async function run() {
 
 
     //jwt related apis
-
-    app.post("/jwt",async(req,res)=>{
+    app.post("/jwt", async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user,         
-        process.env.ACCESS_TOKEN,  //must be string not an object
-      {
-        expiresIn:'5d'
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
+        expiresIn: "5d"
       })
-      res.send({token})
+      res.send({ token })
     })
+    //middleware for jwt 
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers.authorization)
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "forbidden-access" })
+      }
+      const token = req.headers.authorization.split(" ")[1]
+      jwt.verify(token, process.env.ACCESS_TOKEN, (error, decoded) => {
+        if (error) {
+          return res.status(401).send({ message: "forbidden-access" })
+        }
+        req.decoded = decoded;
+        next(); //after decoded the authorization next() will be called 
+      })
+    }
 
     //menu related apis
     app.get("/menu", async (req, res) => {
@@ -55,7 +67,6 @@ async function run() {
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
       res.send(result);
-
     })
 
     //cart related apis
@@ -79,37 +90,38 @@ async function run() {
 
 
     //user related apis
-  app.get("/users",async(req,res)=>{
-    const query = req.params;
-    const result = await userCollection.find(query).toArray()
-    res.send(result)
-  })
-    app.post("/users",async(req,res)=>{
+    app.get("/users", verifyToken, async (req, res) => {
+      //  console.log(req.headers)
+      const query = req.params;
+      const result = await userCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.post("/users", async (req, res) => {
       const user = req.body;
-      const query = {email:user.email}
+      const query = { email: user.email }
       const existingUser = await userCollection.findOne(query)
-      if(existingUser){
-        return res.send({message:"User already exists",insertedId:null})
+      if (existingUser) {
+        return res.send({ message: "User already exists", insertedId: null })
       }
-     const result = await userCollection.insertOne(user)
-    res.send(result);
+      const result = await userCollection.insertOne(user)
+      res.send(result);
     })
 
-    app.patch("/users/admin/:id",async(req,res)=>{
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id:new ObjectId(id)}
-      const updatedDoc ={
-       $set:{
-        role:"admin"
-       }
+      const query = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          role: "admin"
+        }
       }
-      const result = await userCollection.updateOne(query,updatedDoc)
+      const result = await userCollection.updateOne(query, updatedDoc)
       res.send(result)
     })
 
-    app.delete("/users/:id",async(req,res)=>{
+    app.delete("/users/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id:new ObjectId(id)}
+      const query = { _id: new ObjectId(id) }
       const result = await userCollection.deleteOne(query)
       res.send(result)
     })
