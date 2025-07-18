@@ -2,14 +2,14 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken')
-const stripe = require('stripe')(process.env.STRIPE_KEY)
 require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_KEY)
 const port = process.env.PORT || 3000;
 
 // console.log(process.env.DB_USER,process.env.DB_PASS);
 app.use(cors());
 app.use(express.json());
-
+// console.log("Stripe key is:", process.env.STRIPE_KEY);
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
@@ -141,14 +141,15 @@ app.patch("/menu/:id",async(req,res)=>{
 
     app.post("/create-payment-intent",async(req,res)=>{
       const { price } = req.body;
-      const amount = parseInt(price * 100)
+      const amount = parseInt(price * 100);
+      console.log(amount,"amount inside the payment")
       const paymentIntent = await stripe.paymentIntents.create({
        amount:amount,
        currency:'usd',
        payment_method_types:['card']
       })
       res.send({
-        clientSecret:paymentIntent.clientSecret
+        clientSecret: paymentIntent.client_secret
       })
     })
 
