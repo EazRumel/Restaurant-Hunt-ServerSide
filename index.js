@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken')
+const stripe = require('stripe')(process.env.STRIPE_KEY)
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
@@ -89,6 +90,7 @@ app.get("/menu/:id",async(req,res)=>{
 
 app.patch("/menu/:id",async(req,res)=>{
   const item = req.body;
+  console.log(item)
   const id = req.params.id;
   const filter = {_id:new ObjectId(id)}
   const updatedDoc = {
@@ -113,7 +115,7 @@ app.patch("/menu/:id",async(req,res)=>{
     //review related apis
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
-      res.send(result);
+      res.send(result); 
     })
 
     //cart related apis
@@ -133,6 +135,21 @@ app.patch("/menu/:id",async(req,res)=>{
       const query = { _id: new ObjectId(id) }
       const result = await cartCollection.deleteOne(query)
       res.send(result)
+    })
+
+    //payment related apis
+
+    app.post("/create-payment-intent",async(req,res)=>{
+      const { price } = req.body;
+      const amount = parseInt(price * 100)
+      const paymentIntent = await stripe.paymentIntents.create({
+       amount:amount,
+       currency:'usd',
+       payment_method_types:['card']
+      })
+      res.send({
+        clientSecret:paymentIntent.clientSecret
+      })
     })
 
 
