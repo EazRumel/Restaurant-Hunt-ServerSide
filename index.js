@@ -33,6 +33,7 @@ async function run() {
     const reviewCollection = client.db("resTaurantHuntDB").collection("reviews");
     const cartCollection = client.db("resTaurantHuntDB").collection("cart");
     const userCollection = client.db("resTaurantHuntDB").collection("user");
+    const paymentCollection = client.db("resTaurantHuntDB").collection("payments");
 
 
     //jwt related apis
@@ -138,6 +139,17 @@ app.patch("/menu/:id",async(req,res)=>{
     })
 
     //payment related apis
+    app.post("/payments",async(req,res)=>{
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment)
+       console.log(payment)
+     
+      const query = {_id : {
+        $in:payment.cartIds.map(id => new ObjectId(id))
+      }}
+      const deleteResult = await cartCollection.deleteMany(query)
+       res.send({paymentResult,deleteResult})
+    })
 
     app.post("/create-payment-intent",async(req,res)=>{
       const { price } = req.body;
