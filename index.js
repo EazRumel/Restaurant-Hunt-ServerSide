@@ -72,51 +72,51 @@ async function run() {
     }
 
     //menu related apis
-    app.post("/menu",verifyToken,verifyAdmin,async(req,res)=>{
+    app.post("/menu", verifyToken, verifyAdmin, async (req, res) => {
       const item = req.body;
       const result = await menuCollection.insertOne(item)
       res.send(result);
     })
-    
+
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
       res.send(result);
     })
-app.get("/menu/:id",async(req,res)=>{
-  const id = req.params.id;
-  const query = {_id: new ObjectId(id)}
-  const result = await menuCollection.findOne(query)
-  res.send(result)
-})
-
-app.patch("/menu/:id",async(req,res)=>{
-  const item = req.body;
-  console.log(item)
-  const id = req.params.id;
-  const filter = {_id:new ObjectId(id)}
-  const updatedDoc = {
-    $set:{
-      name:item.name,
-      price:item.price,
-      category:item.category,
-      recipe:item.recipe,
-      image:item.image
-    }
-  }
-  const result = await menuCollection.updateOne(filter,updatedDoc)
-  res.send(result)
-})
-    app.delete("/menu/:id",verifyToken,verifyAdmin,async(req,res)=>{
+    app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id:new ObjectId(id)}
+      const query = { _id: new ObjectId(id) }
+      const result = await menuCollection.findOne(query)
+      res.send(result)
+    })
+
+    app.patch("/menu/:id", async (req, res) => {
+      const item = req.body;
+      console.log(item)
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          price: item.price,
+          category: item.category,
+          recipe: item.recipe,
+          image: item.image
+        }
+      }
+      const result = await menuCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
+    app.delete("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
       const result = await menuCollection.deleteOne(query)
       res.send(result)
     })
-    
+
     //review related apis
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
-      res.send(result); 
+      res.send(result);
     })
 
     //cart related apis
@@ -138,36 +138,72 @@ app.patch("/menu/:id",async(req,res)=>{
       res.send(result)
     })
 
+
+    //to get the all api collection data 
+    app.get("/admin-stats",verifyToken,verifyAdmin,async(req,res)=>{
+      const users = await userCollection.estimatedDocumentCount();
+      const menuItems = await menuCollection.estimatedDocumentCount();
+      //  const payments = await paymentCollection.find().toArray();
+      //  const revenue = payments.reduce((total,payment)=>total+payment.price,0)
+      
+      
+      //alternative way to sum all the payment price data instead of reduce method
+      const revenue = await paymentCollection.aggregate([
+       
+        {
+          $group:{ //$group is build in operator in aggregate pipeline 
+            _id:null,
+            totalRevenue:{$sum:'$price'}
+          }
+        }
+      ]).toArray();
+
+      const revenueCount = revenue.length > 0 ? revenue[0].totalRevenue : 0;
+
+      res.send({
+        users,
+        menuItems,
+        revenueCount
+      })
+      console.log(res.send)
+    })
+
     //payment related apis
-    app.post("/payments",async(req,res)=>{
+
+    app.get("/payments/:email", verifyToken, async (req, res) => {
+      const query = { email: req.params.email }
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" })
+      }
+      const result = await paymentCollection.find(query).toArray()
+      res.send(result)
+    })
+
+
+    app.post("/payments", async (req, res) => {
       const payment = req.body;
       const paymentResult = await paymentCollection.insertOne(payment)
-       console.log(payment)
-     
-      const query = {_id : {
-        $in:payment.cartIds.map(id => new ObjectId(id))
-      }}
-      const deleteResult = await cartCollection.deleteMany(query)
-       res.send({paymentResult,deleteResult})
-    })
+      console.log(payment)
 
-    app.get("/payments/:email",verifyToken,async(req,res)=>{
-      const query = {email:req.params.email}
-      if(!req.params.email !== req.decoded.email){
-        return res.status(403).send({message:"forbidden access"})
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => new ObjectId(id))
+        }
       }
-    const result = await paymentCollection.find(query).toArray()
-    res.send(result)
+      const deleteResult = await cartCollection.deleteMany(query)
+      res.send({ paymentResult, deleteResult })
     })
 
-    app.post("/create-payment-intent",async(req,res)=>{
+
+
+    app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
-      console.log(amount,"amount inside the payment")
+      console.log(amount, "amount inside the payment")
       const paymentIntent = await stripe.paymentIntents.create({
-       amount:amount,
-       currency:'usd',
-       payment_method_types:['card']
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
       })
       res.send({
         clientSecret: paymentIntent.client_secret
@@ -215,7 +251,7 @@ app.patch("/menu/:id",async(req,res)=>{
           role: "admin"
         }
       }
-      const result = await userCollection.updateOne(query,updatedDoc)
+      const result = await userCollection.updateOne(query, updatedDoc)
       res.send(result)
     })
 
