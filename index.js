@@ -27,7 +27,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const menuCollection = client.db("resTaurantHuntDB").collection("menu");
     const reviewCollection = client.db("resTaurantHuntDB").collection("reviews");
@@ -82,6 +82,8 @@ async function run() {
       const result = await menuCollection.find().toArray();
       res.send(result);
     })
+
+
     app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
@@ -91,7 +93,7 @@ async function run() {
 
     app.patch("/menu/:id", async (req, res) => {
       const item = req.body;
-      console.log(item)
+      // console.log(item)
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updatedDoc = {
@@ -165,8 +167,45 @@ async function run() {
         menuItems,
         revenueCount
       })
-      console.log(res.send)
     })
+   
+   //order-stats aggregate pipeline through lookup,unwind and group
+
+   app.get("/order-stats",async(req,res)=>{
+       const result = await paymentCollection.aggregate([
+        {
+          $unwind:"$menuIds"
+        },
+        {
+           $lookup:{
+            from:"menu",
+            localField:"menuIds",
+            foreignField:"_id",
+            as:"menuItems",
+           },
+        }, 
+        {
+          $unwind:"$menuItems"
+        },
+        {
+          $group:{
+            _id:"$menuItems.category",
+            quantity:{$sum:1},
+            revenue:{$sum:"$menuItems.price"}
+          }
+          }
+        ,{
+          $project:{
+             _id:0,
+             category:"$_id",
+             quantity:"$quantity",
+             totalRevenue:"$revenue"
+          }
+        }
+       ]).toArray()
+       res.send(result)
+   })
+
 
     //payment related apis
 
@@ -183,7 +222,7 @@ async function run() {
     app.post("/payments", async (req, res) => {
       const payment = req.body;
       const paymentResult = await paymentCollection.insertOne(payment)
-      console.log(payment)
+      // console.log(payment)
 
       const query = {
         _id: {
@@ -199,7 +238,7 @@ async function run() {
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
-      console.log(amount, "amount inside the payment")
+      // console.log(amount, "amount inside the payment")
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
@@ -265,8 +304,8 @@ async function run() {
 
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
